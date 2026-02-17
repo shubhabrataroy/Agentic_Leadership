@@ -171,18 +171,34 @@ def run_agentic_assessment(exec_row: Dict) -> Dict:
         state = LeadershipAgents.researcher(state)
     if 'synthes' in plan or 'assess' in plan:
         state = LeadershipAgents.synthesizer(state)
+    prompt = f"""CRITIQUE this leadership assessment using structured reasoning:
 
-    # Always validate
-    prompt = f"""Review this assessment JSON and return structured validation:
+RAW DATA:
+- Signals: {state.signals}
+- Normalized Scores: {state.draft_assessment.get('normalized_scores', {})}
+- Strengths: {state.draft_assessment.get('strengths', [])}
+- Risks: {state.draft_assessment.get('risks', [])}
+- Benchmark: {state.draft_assessment.get('benchmark_match', 'None')}
+- Overall Fit: {state.draft_assessment.get('overall_fit', 0)}
 
-    {json.dumps(state.draft_assessment, indent=2)}
+VALIDATION CHECKLIST:
+1. Do claimed strengths align with high signal counts? (strategic signals 7+ → Strategic strength)
+2. Are risks justified by derailers? (derailers > 0 → valid risk)
+3. Does benchmark match signal profile? (Strategic Heavyweight → high strategic signals)
+4. Is overall_fit realistic? (0.8+ = exceptional, 0.6-0.8 = strong, <0.6 = develop)
 
-    Return JSON only:
-    {{
-    "confidence": 0.95,
-    "recommendation": "hire",
-    "final_narrative": "2 sentences..."
-    }}"""
+Return CLEAN JSON ONLY (no ```, no markdown):
+
+{{
+  \"signal_consistency\": true/false,
+  \"risk_alignment\": true/false,
+  \"benchmark_valid\": true/false,
+  \"fit_reasonable\": true/false,
+  \"confidence\": 0.0-1.0,
+  \"recommendation\": \"hire|develop|review|pass\",
+  \"issues\": [\"brief list or empty\"],
+  \"narrative\": \"1-2 sentences with reasoning\"
+}}"""
 
     response = llm.invoke(prompt)
     try:
@@ -190,7 +206,8 @@ def run_agentic_assessment(exec_row: Dict) -> Dict:
     except:
         state.final_report = {"confidence": 0.5, "recommendation": "review"}
 
-    return {**state.draft_assessment, **state.final_report}
+    return {**state.draft_assessment, **state.final_report}  # Merge results!
+
 
 
 if __name__ == "__main__":
