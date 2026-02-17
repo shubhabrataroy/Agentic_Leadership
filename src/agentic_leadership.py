@@ -136,10 +136,24 @@ def run_agentic_assessment(exec_row: Dict) -> Dict:
         state = LeadershipAgents.synthesizer(state)
 
     # Always validate
-    prompt = f"""Validate assessment for {exec_row['exec_id']}:\n{json.dumps(state.draft_assessment, indent=2)}\n\nFinal report?"""
-    state.final_report = llm.invoke(prompt)
+    prompt = f"""Review this assessment JSON and return structured validation:
 
-    return state.draft_assessment
+    {json.dumps(state.draft_assessment, indent=2)}
+
+    Return JSON only:
+    {{
+    "confidence": 0.95,
+    "recommendation": "hire",
+    "final_narrative": "2 sentences..."
+    }}"""
+
+    response = llm.invoke(prompt)
+    try:
+        state.final_report = json.loads(response)
+    except:
+        state.final_report = {"confidence": 0.5, "recommendation": "review"}
+
+    return {**state.draft_assessment, **state.final_report}
 
 
 if __name__ == "__main__":
