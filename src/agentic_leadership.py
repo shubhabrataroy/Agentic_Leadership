@@ -84,34 +84,70 @@ class LeadershipAgents:
 
     @staticmethod
     def synthesizer(state: AgentState) -> AgentState:
-        # Handle capability_scores as dict OR individual columns
+        """Deterministic leadership profile synthesis."""
+
+        # 1. Extract capability scores (dict or columns)
         if 'capability_scores' in state.exec_data and isinstance(state.exec_data['capability_scores'], dict):
             scores = state.exec_data['capability_scores']
         else:
-            # Fallback to individual columns
-            caps = ['strategic_thinking', 'results_delivery', 'change_leadership',
-                    'people_leadership', 'collaboration', 'competency_building']
-            scores = {cap: state.exec_data.get(cap, 3.5) for cap in caps}
+            caps = [
+                'strategic_thinking', 'results_delivery', 'change_leadership',
+                'people_leadership', 'collaboration', 'competency_building'
+            ]
+            scores = {cap: float(state.exec_data.get(cap, 3.5)) for cap in caps}
 
-        # Normalize (1-5 → 0-1)
-        norm_scores = {k: round(float(v)/5, 2) for k, v in scores.items()}
+        # 2. Normalize 1-5 → 0-1 scale
+        norm_scores = {k: round(v / 5.0, 2) for k, v in scores.items()}
 
-        strengths = [k.replace('_', ' ').title() for k, v in scores.items()
-                    if float(v) > 4.2]
+        # 3. Identify strengths (top quartile) and risks
+        strengths = [
+            k.replace('_', ' ').title()
+            for k, v in scores.items() if v > 4.2
+        ]
         risks = ['Delegation issues'] if state.signals.get('derailers', 0) > 0 else []
 
+        # 4. SMART benchmark matching (not just first!)
+        if state.benchmarks:
+            def benchmark_score(bench, signals):
+                score = 0.0
+                bench_id = bench['id'].lower()
+                if 'strategic' in bench_id:
+                    score += signals.get('strategic', 0) * 0.1
+                if 'people' in bench_id:
+                    score += signals.get('people', 0) * 0.1
+                if 'results' in bench_id or 'operator' in bench_id:
+                    score += signals.get('results', 0) * 0.1
+                if 'change' in bench_id:
+                    score += signals.get('change', 0) * 0.1
+                return score
+
+            # Pick BEST match by signal alignment
+            scored = [(benchmark_score(b, state.signals), b) for b in state.benchmarks]
+            best_scored = max(scored, key=lambda x: x[0])
+            _, best_benchmark = best_scored
+            benchmark_match = best_benchmark['profile']
+            all_benchmarks = [b['profile'] for b in state.benchmarks]
+        else:
+            benchmark_match = 'No benchmarks available'
+            all_benchmarks = []
+
+        # 5. Overall leadership fit (mean normalized competencies)
+        overall_fit = round(np.mean(list(norm_scores.values())), 2)
+
+        # 6. Assemble complete deterministic profile
         state.draft_assessment = {
-            'exec_id': state.exec_data['exec_id'],
-            'raw_scores': scores,
-            'normalized': norm_scores,
-            'strengths': strengths,
-            'risks': risks,
-            'benchmark_match': state.benchmarks[0]['profile'] if state.benchmarks else 'No match',
-            'all_benchmarks': [b['profile'] for b in state.benchmarks],
-            'overall_fit': round(np.mean([norm_scores[k] for k in norm_scores]), 2),
-            'signal_summary': state.signals
-        }
-        print(f"  ✅ Synthesizer: Overall {state.draft_assessment['overall_fit']:.2f}")
+        'exec_id': state.exec_data['exec_id'],
+        'raw_scores': scores,
+        'normalized_scores': norm_scores,
+        'strengths': strengths,
+        'risks': risks,
+        'benchmark_match': benchmark_match,
+        'all_benchmarks': all_benchmarks,
+        'overall_fit': overall_fit,
+        'signal_summary': state.signals,
+    }
+
+        print(f"  ✅ Synthesizer: {overall_fit:.2f} → '{benchmark_match}'")
         return state
 
 
