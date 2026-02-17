@@ -106,7 +106,8 @@ class LeadershipAgents:
             'normalized': norm_scores,
             'strengths': strengths,
             'risks': risks,
-            'benchmark_match': state.benchmarks[0]['profile'] if state.benchmarks else None,
+            'benchmark_match': state.benchmarks[0]['profile'] if state.benchmarks else 'No match',
+            'all_benchmarks': [b['profile'] for b in state.benchmarks],
             'overall_fit': round(np.mean([norm_scores[k] for k in norm_scores]), 2),
             'signal_summary': state.signals
         }
