@@ -39,7 +39,7 @@ def extract_leadership_signals(exec_comments: str) -> Dict:
 
 def retrieve_benchmarks(exec_profile: Dict) -> List[Dict]:
     """Researcher Agent tool - similar profiles."""
-    # Simulated RAG (expand with FAISS later)
+    # Simulated RAG (we can expand with approaches like simple cosine similarity or FAISS later)
     benchmarks = [
         {'id': 'benchmark_high_strategic', 'profile': 'Strategic Heavyweight', 'success_rate': 0.88, 'risk': 'delegation'},
         {'id': 'benchmark_people_leader', 'profile': 'Team Builder', 'success_rate': 0.92, 'risk': 'execution'},
